@@ -1,7 +1,8 @@
 #pragma once
 
+#include<string>
 #include<map>
-#include <vector>
+#include<vector>
 
 
 enum NODE_TYPE{LEAF, BRANCH};
@@ -9,13 +10,14 @@ enum NODE_TYPE{LEAF, BRANCH};
 class Node{
 
 private:
-    NODE_TYPE type;
+    
     int freq;
     char data;
+    NODE_TYPE type;
     Node* left;
     Node* right;
 
-public:
+public:  
     //constructors
     //leaf Node
     Node(int f,char d, NODE_TYPE t = LEAF);
@@ -27,6 +29,9 @@ public:
 
     int getFrequency();
 
-    void fill(std::map<char, std::pair<int,int>>& enc, int bits, int nbits);
+    void fill(std::map<char, std::pair<int,int>>& enc, int bits, int nbits);   
+
+    bool operator < (Node& a) ;
+    
 
 };

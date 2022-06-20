@@ -3,7 +3,7 @@
 #include <iostream>
 #include "node.h"
 
-Node::Node(int f,char d, NODE_TYPE t = LEAF){
+Node::Node(int f,char d, NODE_TYPE t){
     freq = f;
     data = d;
     type = t;
@@ -12,7 +12,7 @@ Node::Node(int f,char d, NODE_TYPE t = LEAF){
 
 };
    
-Node::Node(Node* l, Node* r, NODE_TYPE t = BRANCH){
+Node::Node(Node* l, Node* r, NODE_TYPE t){
     type = t;
     data = 0;
     freq = l->getFrequency() + r->getFrequency();
@@ -33,6 +33,7 @@ int Node::getFrequency(){
 void Node::fill(std::map<char, std::pair<int,int>>& enc, int bits, int nbits){
 
     if(type == LEAF){
+        
         enc[data] = std::pair<int,int>(bits,nbits);
     }
 
@@ -48,3 +49,7 @@ void Node::fill(std::map<char, std::pair<int,int>>& enc, int bits, int nbits){
 
 
 };
+
+bool Node::operator < (Node& a) {
+    return getFrequency()> a.getFrequency();
+}
