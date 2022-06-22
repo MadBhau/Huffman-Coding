@@ -9,7 +9,7 @@ enum NODE_TYPE{LEAF, BRANCH};
 
 class Node{
 
-private:
+public:
     
     int freq;
     char data;
@@ -17,8 +17,10 @@ private:
     Node* left;
     Node* right;
 
-public:  
+  
     //constructors
+
+    Node();
     //leaf Node
     Node(int f,char d, NODE_TYPE t = LEAF);
     //branch Node
@@ -32,6 +34,10 @@ public:
     void fill(std::map<char, std::pair<int,int>>& enc, int bits, int nbits);   
 
     bool operator < (Node& a) ;
+
+    
+    
+    
     
 
 };

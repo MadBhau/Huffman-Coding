@@ -10,10 +10,10 @@
 
 
 Huffman::Huffman(){
-    encodedMap = new std::map<char, std::pair<int,int>>;
+    encodedMap = new std::map<char, std::pair<std::string,int>>;
     frequencies = NULL;
     data_file = NULL;
-    table_file = NULL;
+    
 }
 
 //Deconstructor
@@ -21,26 +21,24 @@ Huffman::~Huffman(){
     delete encodedMap;
     delete frequencies;
     delete data_file;
-    delete table_file;
+    
 }
 
 
-void Huffman::encode(std::string file_name){
-
-    
+void Huffman::encode(std::string infile_name,std::string outfile_name){
 
     char* charData;
     int size,start,stop;
     std::string stringData;
-    std:: ifstream file(file_name.c_str(), std::ios::binary);
+    std:: ifstream file(infile_name.c_str(), std::ios::binary);
     int s=0;
-    std::vector<std::pair<int,int>>::iterator itr;
+    
 
 
     if(frequencies) delete frequencies;
 
     if(!file){
-        std::cout<<"Could not open file: " << file_name << "\n";
+        std::cout<<"Could not open file: " << infile_name << "\n";
         return;
     }
 
@@ -62,24 +60,28 @@ void Huffman::encode(std::string file_name){
         //read the file
         file.read(charData, size);
 
-        
+        file.close();
 
         //hash map of characters
         frequencies = getFrequencies(charData,size);
 
+        // for(auto itr = frequencies->begin();itr!= frequencies->end();itr++){
+        //     std::cout<< (int)itr->first << "freq-(" << itr->second << ") "<<'\n'; 
+        // }
+
         buildTree();
         showTree();
 
+        //inorder(tree);
+
         encodedRes = doEncoding(charData,size);
-        createDataFile(encodedRes);
+        
 
-        //why pointer??___________
-        createTableFile(*encodedMap);
 
-        if(!writeDataFile(file_name)) return;
-        if(!writeTableFile(file_name)) return;
+        writeEncodedFile(infile_name,outfile_name);
+        
 
-        for(itr = encodedRes.begin();itr!= encodedRes.end();itr++){
+        for(auto itr = encodedRes.begin();itr!= encodedRes.end();itr++){
             s+=itr->second;
         }
 
@@ -94,21 +96,20 @@ void Huffman::encode(std::string file_name){
 
 //Decode String
 
-void Huffman::decode(std::string data_filename, std::string table_filename){
+void Huffman::decode(std::string infile_name, std::string outfile_name){
 
-    //complete this
+    reCreateTree(infile_name);
+    std::cout<<"tree Created"<<'\n';
+    writeDecodedFile(infile_name,outfile_name);
+
+    std::cout<<"file is decoded"<<'\n';
     
-    //return;
-
-    //still not working
-    readTableFile(table_filename);
-    //writeTableFile("note");
 
 }
 
-std::vector<std::pair<int,int>> Huffman::doEncoding(char* data,int size){
-    std::map<char, std::pair<int,int>>::iterator itr;
-    std::vector<std::pair<int,int>> res;
+std::vector<std::pair<std::string,int>> Huffman::doEncoding(char* data,int size){
+    std::map<char, std::pair<std::string,int>>::iterator itr;
+    std::vector<std::pair<std::string,int>> res;
     for(int i=0;i<size;i++){
         itr = encodedMap->find(data[i]);
         res.push_back(itr->second);
@@ -182,6 +183,7 @@ void Huffman::sort(std::vector<Node*>& v){
 }
 
 
+
 void Huffman::buildTree(){
 
     int bits =0;
@@ -222,277 +224,329 @@ void Huffman::buildTree(){
     // Set tree pointer
     // Fill the tree
     tree = nodes.front();
-    tree->fill(*encodedMap, bits, 0);
 
+    //tree->fill(*encodedMap, bits, 0);
+    findCodes();
 }
 
 void Huffman::showTree(){
-    std::map<char,std::pair<int,int>>::iterator itr;
+    std::map<char,std::pair<std::string,int>>::iterator itr;
 
     for(itr = encodedMap->begin();itr!= encodedMap->end();itr++){
-        std::cout<< itr->first << ": (" << itr->second.second << ") " << itr->second.first << "\n";
+        std::cout<< (int)itr->first << ": (" << itr->second.second << ") " << itr->second.first << "\n";
     }
 
 }
 
-void Huffman::createDataFile(std::vector<std::pair<int,int>>& v){
+//builds a tree from huffman codes(taking frequencies as 0)
+void Huffman::buildTree(std::string& code, char data){
 
-    int bitpos, bit;
-
-    if(data_file) delete data_file;
-    data_file = new dataFile;
-    //nbsp character
-    data_file->key = 0xA0;
-
-    int size=0, poff;
+    //root node
+    if(!tree) tree = new Node();
     
-    for(auto it=v.begin(); it != v.end();it++){
-        size += it->second;
-    }
-
-    // calculate no of bytes required(ceil to multiple of 8) 
-    // extra padding required to get till multiple of 8   
-    poff = size;
-    while (poff > 0) poff -= 8;
-    poff *= -1;
-    size+=poff;
-    size /=8;//bits to bytes
-
-    //
-    data_file->size = size;
-    data_file->data = new char[data_file->size];
-    data_file->offset = poff;
-
-    int charpos =0;
-    int charbitpos = 7;
-
-    for(auto itr=v.begin(); itr!= v.end(); itr++){
-
-        //filling every byte data
-        for(bitpos = itr->second-1;bitpos >=0; bitpos --){
-
-            //Extract Bits
-            bit = (itr->first >> bitpos) & 1;
-
-
-            if(charbitpos < 0){
-                charbitpos = 7;
-                charpos ++;
+    Node* current = tree;
+    for(int i = 0;i< code.size();i++){
+        if(code[i]=='0'){
+            if(current->left==NULL){
+                current->left = new Node();
             }
-
-            if(charbitpos == 7){
-                data_file->data[charpos] = 0x0;
-            }
-
-            //add it 
-            data_file->data[charpos] = (data_file->data[charpos]) | bit << charbitpos;
-            charbitpos--;
+            current=current->left;
         }
+        else if(code[i]=='1'){
+            if(current->right==NULL){
+                current->right = new Node();
+            }
+            current=current->right;
+        }
+
     }
-}
-
-void Huffman::createTableFile(std::map<char, std::pair<int,int>>& m){
-
-    if(table_file) delete table_file;
-    table_file = new tableFile;
-
-    tableEntry temp;
-    table_file->key = 0xA0;
-
-    for (auto it = encodedMap->begin(); it != encodedMap->end(); it++) {
-        temp.data = it->first;
-        temp.bits = it->second.first;
-        temp.size = it->second.second;
-        table_file->data.push_back(temp);
-    }
+    current->data = data;
+    current->type = LEAF;
 
 }
 
-
-bool Huffman::readDataFile(std::string str){
-
-    char charbuffer;
-    char buffer[256];
-    char* databuffer;
+void Huffman::reCreateTree(std::string infilename){
     
-    if(data_file) delete data_file;
-    data_file = new dataFile;
+    std:: ifstream inFile(infilename, std::ios::in|std::ios::binary);
 
-    std::ifstream file(str.c_str(),std::ios::binary);
+    if(!inFile) {
+        std::cout<<"Error Opening Input File"<<'\n';
+    }
 
     
 
+    unsigned char size;
+    inFile.read(reinterpret_cast<char*>(&size),1);
     
 
-    if(!file){
-        std::cout << "Could not open datafile\n";
-		file.close();
-		return false;
-    }else{
-        // Read key and check contents
-		file.read(&charbuffer, 1);
-		if (charbuffer != 0xA0) {
-			std::cout << "Invalid datafile0\n";
-			file.close();
-			return false;
+    tree = NULL;
+
+    for (int i = 0; i < size; i++)
+	{
+		char a_code;
+		unsigned char h_code_c[16];//for binary code
+
+        //read the character and the code																
+		inFile.read(&a_code, 1);
+		inFile.read(reinterpret_cast<char*>(h_code_c), 16);
+
+		std::string h_code_s = "";
+		for (int i = 0; i < 16; i++)
+		{   //obtain the oringinal 128-bit binary string
+			h_code_s += decimal_to_binary(h_code_c[i]);
+		}
+        // std::cout<<"-------------"<<'\n';
+        // std::cout<<h_code_s<<'\n';
+
+		int j = 0;
+		while (h_code_s[j] == '0')
+		{//delete the added '000..­1' to get the real huffman code
+			j++;
+		}
+		h_code_s = h_code_s.substr(j + 1);
+		
+        // std::cout<<h_code_s<< "--" << (int)a_code<<'\n';
+        // std::cout<<"-------------"<<'\n';
+        
+
+        buildTree(h_code_s,a_code);
+        
+	}
+    
+	inFile.close();
+
+}
+
+
+void Huffman::writeDecodedFile(std::string infilename,std::string outfilename){
+    std::ifstream inFile(infilename, std::ios::in | std::ios::binary);
+	std::ofstream outFile(outfilename, std::ios::out);
+	unsigned char size;
+    																		
+	inFile.read(reinterpret_cast<char*>(&size), 1);
+    //jump to last file to get the size of zero padding
+	inFile.seekg(-1, std::ios::end);															
+	char zeroCount;
+	inFile.read(&zeroCount, 1);
+
+    
+
+    //jump to the position where text starts
+    //i.e. skip the size(1) char+code(1+16) part
+	inFile.seekg(1 + 17 * size, std::ios::beg);													
+
+	std::vector<unsigned char> text;
+	unsigned char textseg;
+
+	inFile.read(reinterpret_cast<char*>(&textseg), 1);
+	while (!inFile.eof())
+	{//get the text byte by byte using unsigned char
+		text.push_back(textseg);
+		inFile.read(reinterpret_cast<char*>(&textseg), 1);
+	}
+
+    //root node of tree
+	Node* current = tree;
+	std::string code;
+
+    //last text item will be padding size 
+    //hence iterating till text.size() - 1
+	for (int i = 0; i < text.size() - 1; i++)
+	{   //translate the huffman code
+		code = decimal_to_binary(text[i]);
+
+               
+
+        //last 8 bits - cut the extra zeros added
+		if (i == text.size() - 2){
+            code = code.substr(0, 8 - zeroCount);
+        }
+			
+        
+        //std::cout<<"-----------------"<<'\n';
+        //std::cout<< code << '\n'; 
+
+		for (int j = 0; j < code.size(); j++)
+		{
+			if (code[j] == '0'){
+                current = current->left;
+            }	
+			else{
+                current = current->right;
+            }
+			if (current->left == NULL && current->right == NULL)
+			{
+                //std::cout<< (int)current->data << '\n';
+                //take care of (carriage return)
+                if((int)current->data!=13){
+                    outFile.put(current->data);
+                }
+				
+				current = tree;
+			}
+		}
+	}
+	inFile.close();
+	outFile.close();
+
+    
+}
+    
+std::string Huffman::decimal_to_binary(int in)
+{
+	std::string temp = "";
+	std::string result = "";
+	while (in)
+	{
+		temp += ('0' + in % 2);
+		in /= 2;
+	}
+	result.append(8 - temp.size(), '0');
+
+	for (int i = temp.size() - 1; i >= 0; i--)												
+	{
+		result += temp[i];
+	}
+	return result;
+}
+
+
+int Huffman::binary_to_decimal(std::string const& in)
+{
+	int result = 0;
+	for (int i = 0; i < in.size(); i++)
+		result = result * 2 + in[i] - '0';
+	return result;
+}
+
+
+std::string toBinary(int n)
+{
+    std::string r="";
+    if(n==0) return "0";
+    while(n!=0) {
+        r=(n%2==0 ?"0":"1")+r; 
+        n/=2;
+    }
+    return r;
+}
+
+
+void Huffman::writeEncodedFile(std::string infilename,std::string outfilename) {
+
+	outfilename += ".henc";
+    std::ifstream inFile(infilename, std::ios::in |std::ios::binary);
+    std::ofstream outFile(outfilename, std::ios::binary);
+
+    if(!inFile || !outFile){
+        std::cout<<"Could not open file" << '\n';
+        return;
+    }
+
+
+    std::string in ="", temp;
+
+
+
+    //save number of unique characters in the file
+    in += (char)(encodedMap->size());
+
+    for(auto itr = encodedMap->begin();itr!=encodedMap->end();itr++){
+
+        //save the character
+        in+= itr->first;
+
+        //all codes will be saved in this format [000001 + actual code] 128 bits long
+        //where 1 will determine start of huffman code
+        //hence zeros needed 128 - 1 - nbits
+        //but as 
+        temp.assign(127 - itr->second.second,'0');
+        
+        temp+='1';
+        //now append the code
+        // std::cout<<toBinary(itr->second.first)<<'\n';
+        temp.append(itr->second.first);
+        // std::cout<<temp<<'\n';
+        
+
+        in += (char)binary_to_decimal(temp.substr(0, 8));
+
+        //cut into 8-bit binary codes that can convert into char
+        for (int i = 0; i < 15; i++)
+		{
+			temp = temp.substr(8);
+			in += (char)binary_to_decimal(temp.substr(0, 8));
 		}
 
-        try {
-        // Read the datafile contents
-            while (!file.eof()) {
-                // Read the size
-                file.read(buffer, 4);
-                data_file->size = (int)buffer;
-                if (file.fail()) throw "Error reading datafile1";
-
-                //create buffer to read the data
-                databuffer = new char[data_file->size];
-                
-                // Read the padding
-                file.read(&charbuffer, 1);
-                data_file->offset = charbuffer;
-			    if (file.fail()) throw "Error reading datafile2";
-            
-                // Read the encoded data
-                file.read(databuffer, data_file->size);
-                data_file->data = databuffer;
-
-    			if (file.fail()) throw "Error reading datafile3";
-                
-                
-            }
-        }
-        catch (char* err) {
-            file.close();
-            std::cout << err << "\n";
-            return false;
-        }
-	}
-	file.close();
-    return true;
-}
+    }
     
 
-bool Huffman::readTableFile(std::string str){
-    char charbuffer;
-	char buffer[256];
-	tableEntry temp;
-	
-	if (table_file) delete table_file;
-	table_file =    new tableFile;
-	
-	std::ifstream file(str.c_str(), std::ios::binary);
-	
-	if (!file) {
-		std::cout << "Could not open tablefile\n";
-		file.close();
-		return false;
-	}
-	else {
-		
-		// Read key and check contents
-		file.read(&charbuffer, 1);
-		if (charbuffer != -96) {
-			std::cout << "Invalid tablefile\n"<<charbuffer;
-			file.close();
-			return false;
+    temp.clear();
+
+    char data;
+    inFile.get(data);
+
+    
+
+    //do encoding 
+    while (!inFile.eof())
+	{
+        //get the huffman code
+		temp += encodedMap->find(data)->second.first;
+
+        // std::cout<<"-----------------"<<'\n';
+        // std::cout<< encodedMap->find(data)->second.first << '\n';
+        // std::cout<< toBinary(encodedMap->find(data)->second.first) << '\n';
+
+		while (temp.size() > 8)
+		{   //cut into 8-bit binary codes that can convert into saving char
+			in += (char)binary_to_decimal(temp.substr(0, 8));
+			temp = temp.substr(8);
 		}
-		
-        try {
-        // Read the table entries
-            while (file.read(&charbuffer, 1)) {
-                
-                // Read the char in question
-                
-                temp.data = charbuffer;
-                if (file.fail()) throw "Error reading tablefile";
-                std::cout<<"here"<<'\n';
-                
-                // Read the size (number of bits) this encoded char uses
-                file.read(&charbuffer, 1);
-                temp.size = charbuffer;
-			    if (file.fail()) throw "Error reading tablefile";
-                std::cout<<"here1"<<'\n';
-
-            
-                // Read the bits for this encoded char
-                file.read(buffer, 4);
-                temp.bits = (int)buffer;
-    			if (file.fail()) throw "Error reading tablefile";
-                std::cout<<"here2"<<'\n';
-                
-
-                
-                // Append the new entry into the data vector
-                table_file->data.push_back(temp);
-                std::cout<<"here3"<<'\n';
-
-            }
-        }
-        catch (const char* err) {
-            file.close();
-            std::cout << err << "\n";
-            return false;
-        }
+		inFile.get(data);
 	}
-	file.close();
-    return true;
-
-}
-
-
-bool Huffman::writeTableFile(std::string str) {
-	str += ".htbl";
-    std::ofstream file(str.c_str(), std::ios::binary);
     
-
-    if (!file) {
-        std::cout << "Could not write Tablefile for encoded data\n";
-        file.close();
-        return false;
-    }
-    else {
-        file.write(&table_file->key, 1);
-
-        for (auto it = table_file->data.begin(); it != table_file->data.end(); it++) {
-            file.write(&it->data, 1);
-            file.write(&it->size, 1);
-            file.write((char*)&it->bits, 4);
-        }
-    }
-    file.close();
-    return true;
-}
-
-bool Huffman::writeDataFile(std::string str) {
-	str += ".hdta";
-    std::ofstream file(str.c_str(), std::ios::binary);
-
-    if (!file) {
-        std::cout << "Could not write Datafile for encoded data\n";
-        file.close();
-        return false;
-    }
-    else {
-        file.write(&data_file->key, 1);
-        file.write((char*)&data_file->size, 4);
-        file.write(&data_file->offset,1);
-        file.write((char*)data_file->data, data_file->size);
-    }
-    file.close();
-    return true;
-}
-
-
-//------------Helper Functions---------------
-
-void Huffman::readTableFileContent(){
-
-    for(auto it = table_file->data.begin(); it!=table_file->data.end();it++){
-        std::cout<<"\n\n";
-        std::cout<<it->data<<' '<<(int)it->size << ' '<<it->bits << '\n';
-    }
     
+    //create required padding
+    int count = 8 - temp.size();
+    if(temp.size()< 8){
+        temp.append(count, '0');
+    }
+
+    in+=(char)binary_to_decimal(temp);
+
+    //last byte represent the padding zeros added
+    in+=(char)count;
+
+    //write this string to the file
+    outFile.write(in.c_str(), in.size());
+    outFile.close();
+    inFile.close(); 
+    
+}
 
 
-};
+void Huffman::traverse(Node* node, std::string code,std::map<char, std::pair<std::string,int>>& enc)
+{
+	if (node->left == NULL && node->right == NULL)
+	{
+		enc[node->data] = std::pair<std::string,int>(code,code.size());
+	}
+	else
+	{
+		traverse(node->left, code + '0',enc);
+		traverse(node->right, code + '1',enc);
+	}
+}
+
+void Huffman::inorder(Node* root){
+    if(!root) return;
+    inorder(root->left);
+    std::cout<<"_" <<root->data <<"_" <<root->freq;
+    inorder(root->right);
+}
+
+
+void Huffman::findCodes(){
+    traverse(tree,"",*encodedMap);
+}

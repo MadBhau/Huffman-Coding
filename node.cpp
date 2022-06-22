@@ -3,6 +3,15 @@
 #include <iostream>
 #include "node.h"
 
+Node::Node(){
+    freq =0;
+    data =' ';
+    type = BRANCH;
+    left = NULL;
+    right = NULL;
+}
+
+
 Node::Node(int f,char d, NODE_TYPE t){
     freq = f;
     data = d;
@@ -15,9 +24,10 @@ Node::Node(int f,char d, NODE_TYPE t){
 Node::Node(Node* l, Node* r, NODE_TYPE t){
     type = t;
     data = 0;
-    freq = l->getFrequency() + r->getFrequency();
+    freq = l->freq + r->freq;
     left = l;
     right = r;
+    
 };
 
 
@@ -47,9 +57,14 @@ void Node::fill(std::map<char, std::pair<int,int>>& enc, int bits, int nbits){
         nbits--;
     }
 
-
 };
+
+
+
+
 
 bool Node::operator < (Node& a) {
     return getFrequency()> a.getFrequency();
 }
+
+
