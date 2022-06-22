@@ -22,13 +22,13 @@ Huffman coding is a lossless data compression algorithm. The idea is to assign c
 Checkout [encoding.cpp](https://github.com/MadBhau/Huffman-Coding/blob/master/encoding.cpp) and [decoding.cpp](https://github.com/MadBhau/Huffman-Coding/blob/master/decoding.cpp)
 
 
-1. Create an object of `Huffman` class. 
+1. Create an object of `Huffman` class.\ 
 `Huffman h;`
 
-2. To compress, call `encode` function which takes two arguments:
+2. To compress, call `encode` function which takes two arguments:\
 `h.encode("file to be compressed", "name of compressed file")`
 
-3. To decompress, call `decode` function which takes two arguments:
+3. To decompress, call `decode` function which takes two arguments:\
 `h.decode("file to be decompressed", "name of decompressed file")`
 
 4. Run the code.
